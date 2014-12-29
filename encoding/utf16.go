@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 )
 
-var UTF16 utf16Encoding = newUtf16Encoding("UTF16", unicode.LittleEndian, unicode.ExpectBOM)
-var UTF16B utf16Encoding = newUtf16Encoding("UTF16B", unicode.BigEndian, unicode.ExpectBOM)
-var UTF16LE utf16Encoding = newUtf16Encoding("UTF16LE", unicode.LittleEndian, unicode.IgnoreBOM)
-var UTF16BE utf16Encoding = newUtf16Encoding("UTF16BE", unicode.BigEndian, unicode.IgnoreBOM)
+var UTF16   *utf16Encoding = newUtf16Encoding("UTF16",   unicode.LittleEndian, unicode.ExpectBOM)
+var UTF16B  *utf16Encoding = newUtf16Encoding("UTF16B",  unicode.BigEndian, unicode.ExpectBOM)
+var UTF16LE *utf16Encoding = newUtf16Encoding("UTF16LE", unicode.LittleEndian, unicode.IgnoreBOM)
+var UTF16BE *utf16Encoding = newUtf16Encoding("UTF16BE", unicode.BigEndian, unicode.IgnoreBOM)
 
 const (
 	// 0xd800-0xdc00 encodes the high 10 bits of a pair.
@@ -31,7 +31,7 @@ type utf16Encoding struct {
 	endian unicode.Endianness
 	bom    unicode.BOMPolicy
 
-	decorder transform.Transformer
+	decoder transform.Transformer
 
 	name string
 }
@@ -40,8 +40,8 @@ func (e utf16Encoding) String() string {
 	return e.name
 }
 
-func newUtf16Encoding(name string, endian unicode.Endianness, bom unicode.BOMPolicy) utf16Encoding {
-	return utf16Encoding{
+func newUtf16Encoding(name string, endian unicode.Endianness, bom unicode.BOMPolicy) *utf16Encoding {
+	return &utf16Encoding{
 		utf16Decoder:  &utf16Decoder{},
 		utf16splitter: &utf16splitter{endian: endian},
 		endian:        endian,
@@ -120,16 +120,18 @@ loop:
 	return nSrc, err, score
 }
 
-func (c utf16Encoding) getDecorder() transform.Transformer {
-	if c.decorder == nil {
-		c.decorder = unicode.UTF16(c.endian, c.bom).NewDecoder()
+func (c *utf16Encoding) getDecoder() transform.Transformer {
+	if c.decoder == nil {
+		c.decoder = unicode.UTF16(c.endian, c.bom).NewDecoder()
+	} else {
+		c.decoder.Reset()
 	}
 
-	return c.decorder
+	return c.decoder
 }
 
-func (c utf16Encoding) Decode(b []byte) (string, error) {
-	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecorder()))
+func (c *utf16Encoding) Decode(b []byte) (string, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecoder()))
 	if err != nil {
 		return "", err
 	}

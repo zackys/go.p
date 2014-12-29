@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-var ISO2022JP iso2022JPEncoding = newIso2022JPEncoding()
+var ISO2022JP *iso2022JPEncoding = newIso2022JPEncoding()
 
 const (
 	asciiState = iota
@@ -25,15 +25,15 @@ type iso2022JPEncoding struct {
 	*iso2022JPDecorder
 	*splitter
 
-	decorder transform.Transformer
+	decoder transform.Transformer
 }
 
 func (iso2022JPEncoding) String() string {
 	return "ISO2022"
 }
 
-func newIso2022JPEncoding() iso2022JPEncoding {
-	return iso2022JPEncoding{
+func newIso2022JPEncoding() *iso2022JPEncoding {
+	return &iso2022JPEncoding{
 		iso2022JPDecorder: new(iso2022JPDecorder),
 		splitter:          &splitter{},
 	}
@@ -130,16 +130,18 @@ loop:
 	return nSrc, err, score
 }
 
-func (c iso2022JPEncoding) getDecorder() transform.Transformer {
-	if c.decorder == nil {
-		c.decorder = japanese.ISO2022JP.NewDecoder()
+func (c *iso2022JPEncoding) getDecoder() transform.Transformer {
+	if c.decoder == nil {
+		c.decoder = japanese.ISO2022JP.NewDecoder()
+	} else {
+		c.decoder.Reset()
 	}
 
-	return c.decorder
+	return c.decoder
 }
 
-func (c iso2022JPEncoding) Decode(b []byte) (string, error) {
-	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecorder()))
+func (c *iso2022JPEncoding) Decode(b []byte) (string, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecoder()))
 	if err != nil {
 		return "", err
 	}

@@ -9,21 +9,21 @@ import (
 )
 
 // EUCJP is the EUC-JP encoding.
-var EUCJP eucJP = newEucJP()
+var EUCJP *eucJP = newEucJP()
 
 type eucJP struct {
 	eucJPDecoder
 
 	*splitter
-	decorder transform.Transformer
+	decoder transform.Transformer
 }
 
 func (eucJP) String() string {
 	return "EUC-JP"
 }
 
-func newEucJP() eucJP {
-	return eucJP{
+func newEucJP() *eucJP {
+	return &eucJP{
 		eucJPDecoder: eucJPDecoder{},
 		splitter:     &splitter{},
 	}
@@ -120,16 +120,18 @@ loop:
 	return nSrc, err, score
 }
 
-func (c eucJP) getDecorder() transform.Transformer {
-	if c.decorder == nil {
-		c.decorder = japanese.EUCJP.NewDecoder()
+func (c *eucJP) getDecoder() transform.Transformer {
+	if c.decoder == nil {
+		c.decoder = japanese.EUCJP.NewDecoder()
+	} else {
+		c.decoder.Reset()
 	}
 
-	return c.decorder
+	return c.decoder
 }
 
-func (c eucJP) Decode(b []byte) (string, error) {
-	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecorder()))
+func (c *eucJP) Decode(b []byte) (string, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecoder()))
 	if err != nil {
 		return "", err
 	}

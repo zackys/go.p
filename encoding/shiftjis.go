@@ -8,13 +8,13 @@ import (
 	"unicode/utf8"
 )
 
-var ShiftJIS shiftJIS = newShiftJIS()
+var ShiftJIS *shiftJIS = newShiftJIS()
 
 type shiftJIS struct {
 	shiftJISDecoder
 	*splitter
 
-	decorder transform.Transformer
+	decoder transform.Transformer
 }
 
 func (shiftJIS) String() string {
@@ -25,8 +25,8 @@ func (shiftJIS) NewEncodingSearcher() EncodingSearcher {
 	return shiftJISDecoder{}
 }
 
-func newShiftJIS() shiftJIS {
-	return shiftJIS{
+func newShiftJIS() *shiftJIS {
+	return &shiftJIS{
 		shiftJISDecoder: shiftJISDecoder{},
 		splitter:        &splitter{},
 	}
@@ -110,16 +110,18 @@ loop:
 	return nSrc, err, score
 }
 
-func (c shiftJIS) getDecorder() transform.Transformer {
-	if c.decorder == nil {
-		c.decorder = japanese.ShiftJIS.NewDecoder()
+func (c *shiftJIS) getDecoder() transform.Transformer {
+	if c.decoder == nil {
+		c.decoder = japanese.ShiftJIS.NewDecoder()
+	} else {
+		c.decoder.Reset()
 	}
 
-	return c.decorder
+	return c.decoder
 }
 
-func (c shiftJIS) Decode(b []byte) (string, error) {
-	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecorder()))
+func (c *shiftJIS) Decode(b []byte) (string, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(b), c.getDecoder()))
 	if err != nil {
 		return "", err
 	}

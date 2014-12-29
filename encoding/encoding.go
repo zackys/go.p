@@ -7,29 +7,23 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// Line Separator
 const (
 	LE byte = 0x0A
 	CR byte = 0x0D
 )
 
-var ErrInvalidEncoding = errors.New("invalid")
-
-type Text list.List
-
-type EncodingSearcher interface {
-	EncodingSearch(p []byte, atEOF bool) (nSrc int, err error, score int)
-}
-
-type Splitter interface {
-	Split(src []byte, atEnd bool, lines *list.List)
-}
+var ErrInvalidEncoding = errors.New("invalid encoding")
 
 type Encoding interface {
 	Splitter
-
-	Decode(b []byte) (string, error)
-
+	Decoder
 	fmt.Stringer
+}
+
+
+type EncodingSearcher interface {
+	EncodingSearch(p []byte, atEOF bool) (nSrc int, err error, score int)
 }
 
 func CheckEncoding(ls *list.List, es EncodingSearcher) (yes bool, score int) {
@@ -63,6 +57,10 @@ func CheckEncoding(ls *list.List, es EncodingSearcher) (yes bool, score int) {
 	}
 
 	return err == nil, score
+}
+
+type Splitter interface {
+	Split(src []byte, atEnd bool, lines *list.List)
 }
 
 type splitter struct {
@@ -128,4 +126,8 @@ loop:
 			sp.remains = src[nHead:n]
 		}
 	}
+}
+
+type Decoder interface {
+	Decode(b []byte) (string, error)
 }
