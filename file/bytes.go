@@ -1,0 +1,189 @@
+package file
+
+import (
+	"bufio"
+	"container/list"
+	"fmt"
+	"github.com/zackys/go.p/encoding"
+	"golang.org/x/text/transform"
+	"io"
+	"os"
+)
+
+type Bytes struct {
+	ls *list.List
+}
+
+func NewBytes() *Bytes {
+	return &Bytes{
+		list.New(),
+	}
+}
+
+type Iterator struct {
+	next *list.Element
+}
+
+func (c *Bytes) Iterator() Iterator {
+	return Iterator{
+		next: c.ls.Front(),
+	}
+}
+
+func (itr Iterator) HasNext() bool {
+	return itr.next != nil
+}
+
+func (itr *Iterator) Next() []byte {
+	ret := itr.next.Value.([]byte)
+	itr.next = itr.next.Next()
+	return ret
+}
+
+func (c *Bytes) ReadFrom(in *os.File) error {
+	r := bufio.NewReader(in)
+	for {
+		b := make([]byte, 2)
+
+		n, err := r.Read(b)
+		for _, c := range b {
+			fmt.Printf("[%02x]", c)
+		}
+		if n == 0 && err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		c.ls.PushBack(b[:n])
+	}
+
+	return nil
+}
+
+func (c *Bytes) WriteTo(out *os.File) error {
+
+	return nil
+}
+
+func checkEncoding(c *Bytes, es encoding.EncodingSearcher) (yes bool, score int) {
+	var nSrc, s int
+	var err error
+	var prv []byte
+	itr := c.Iterator()
+	for itr.HasNext() {
+		b := itr.Next()
+		if prv != nil {
+			b = append(prv, b...)
+		}
+
+		nSrc, err, s = es.EncodingSearch(b, !itr.HasNext())
+		score += s
+		if err == encoding.ErrInvalidEncoding {
+			break
+		} else if err == transform.ErrShortSrc {
+			prv = b[nSrc:]
+		} else {
+			prv = nil
+		}
+	}
+
+	return err == nil, score
+}
+
+//func checkEncoding(c *Bytes, es encoding.EncodingSearcher) (yes bool, score int) {
+//	ls := c.ls
+//	e := ls.Front()
+//	var nSrc, s int
+//	var err error
+//	var prv []byte
+//	loop:
+//	for {
+//		b := e.Value.([]byte)
+//		if prv != nil {
+//			b = append(prv, b...)
+//		}
+//		next := e.Next()
+//		if next == nil {
+//			nSrc, err, s = es.EncodingSearch(b, true)
+//			score += s
+//			break
+//		} else {
+//			nSrc, err, s = es.EncodingSearch(b, false)
+//			score += s
+//			if err == encoding.ErrInvalidEncoding {
+//				break loop
+//			} else if err == transform.ErrShortSrc {
+//				prv = b[nSrc:]
+//			} else {
+//				prv = nil
+//			}
+//		}
+//
+//		e = next
+//	}
+//
+//	return err == nil, score
+//}
+
+func (c *Bytes) SearchEncoding() encoding.Encoding {
+	var enc encoding.Encoding
+
+	yes, score := checkEncoding(c, encoding.ISO2022JP)
+	if yes {
+		if score > 0 {
+			//ISO2022確定
+			println("ISO2022")
+			enc = encoding.ISO2022JP
+		} else {
+			//ASCII確定
+			println("ASCII")
+			enc = encoding.ASCII
+		}
+	} else {
+		yes, score := checkEncoding(c, encoding.UTF8)
+		if yes {
+			//UTF8確定
+			println("UTF8")
+			enc = encoding.UTF8
+		} else {
+			sjis, scoreSjis := checkEncoding(c, encoding.ShiftJIS)
+			if sjis {
+				//ShiftJIS確定
+				println("maybe ShiftJIS")
+			}
+			euc, scoreEuc := checkEncoding(c, encoding.EUCJP)
+			if euc {
+				if !sjis {
+					println("EUCJP", scoreEuc, scoreSjis)
+					enc = encoding.EUCJP
+				} else if scoreSjis < scoreEuc {
+					println("EUCJP", scoreEuc, scoreSjis)
+					enc = encoding.EUCJP
+				} else {
+					println("*ShiftJIS", scoreSjis, scoreEuc)
+					enc = encoding.ShiftJIS
+				}
+			} else {
+				if sjis {
+					println("**ShiftJIS", scoreSjis, scoreEuc)
+					enc = encoding.ShiftJIS
+				} else {
+					yes, score = checkEncoding(c, encoding.UTF16)
+					if yes {
+						if score > 0 {
+							println("UTF16BE")
+							enc = encoding.UTF16BE
+						} else {
+							println("UTF16LE")
+							enc = encoding.UTF16LE
+						}
+					} else {
+						println("none")
+					}
+				}
+			}
+		}
+	}
+
+	return enc
+}
