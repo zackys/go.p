@@ -1,7 +1,9 @@
 # Packages of golang
 
-## encoding
+## packages
+
+### encoding
 Presuming text file encoding.
 
-## file
+### file
 Container for file as binary data.
