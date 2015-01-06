@@ -1,6 +1,7 @@
 package text
 
 import (
+	"bufio"
 	"container/list"
 	"github.com/zackys/go.p/encoding"
 	"github.com/zackys/go.p/file"
@@ -53,10 +54,35 @@ func (c *Text) ReadFrom(in *file.Bytes) {
 	}
 }
 
-func (c *Text) WriteTo(out io.Writer) {
+func (c *Text) Transform(t ...Transformer) error {
+	var err error
+	newlst := list.New()
 	itr := c.Iterator()
 	for itr.HasNext() {
-		str := itr.Next()
-		out.Write([]byte(str))
+		s := itr.Next()
+		for _, t0 := range t {
+			s, err = t0.Transform(s)
+			if err != nil {
+				return err
+			}
+		}
+		newlst.PushBack(s)
 	}
+
+	c.ls = newlst
+	return nil
+}
+
+func (c *Text) WriteTo(out io.Writer, enc encoding.Encoder) error {
+	writer := bufio.NewWriter(out)
+	itr := c.Iterator()
+	for itr.HasNext() {
+		b, err := enc.Encode(itr.Next())
+		if err != nil {
+			return err
+		} else {
+			writer.Write(b)
+		}
+	}
+	return writer.Flush()
 }
