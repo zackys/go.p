@@ -5,6 +5,7 @@ import (
 	"code.google.com/p/go.text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"io/ioutil"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -16,6 +17,7 @@ type eucJP struct {
 
 	*splitter
 	decoder transform.Transformer
+	encoder transform.Transformer
 }
 
 func (eucJP) String() string {
@@ -136,4 +138,22 @@ func (c *eucJP) Decode(b []byte) (string, error) {
 		return "", err
 	}
 	return string(ret), err
+}
+
+func (c *eucJP) getEncoder() transform.Transformer {
+	if c.encoder == nil {
+		c.encoder = japanese.EUCJP.NewEncoder()
+	} else {
+		c.encoder.Reset()
+	}
+
+	return c.encoder
+}
+
+func (c *eucJP) Encode(s string) ([]byte, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(s), c.getEncoder()))
+	if err != nil {
+		return nil, err
+	}
+	return ret, err
 }

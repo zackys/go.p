@@ -6,6 +6,7 @@ import (
 	"container/list"
 	"golang.org/x/text/transform"
 	"io/ioutil"
+	"strings"
 )
 
 var UTF16   *utf16Encoding = newUtf16Encoding("UTF16",   unicode.LittleEndian, unicode.ExpectBOM)
@@ -32,6 +33,7 @@ type utf16Encoding struct {
 	bom    unicode.BOMPolicy
 
 	decoder transform.Transformer
+	encoder transform.Transformer
 
 	name string
 }
@@ -136,6 +138,25 @@ func (c *utf16Encoding) Decode(b []byte) (string, error) {
 		return "", err
 	}
 	return string(ret), err
+}
+
+
+func (c *utf16Encoding) getEncoder() transform.Transformer {
+	if c.encoder == nil {
+		c.encoder = unicode.UTF16(c.endian, c.bom).NewEncoder()
+	} else {
+		c.encoder.Reset()
+	}
+
+	return c.encoder
+}
+
+func (c *utf16Encoding) Encode(s string) ([]byte, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(s), c.getEncoder()))
+	if err != nil {
+		return nil, err
+	}
+	return ret, err
 }
 
 type utf16splitter struct {

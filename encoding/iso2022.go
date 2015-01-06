@@ -5,6 +5,7 @@ import (
 	"code.google.com/p/go.text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"io/ioutil"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -26,6 +27,7 @@ type iso2022JPEncoding struct {
 	*splitter
 
 	decoder transform.Transformer
+	encoder transform.Transformer
 }
 
 func (iso2022JPEncoding) String() string {
@@ -146,4 +148,22 @@ func (c *iso2022JPEncoding) Decode(b []byte) (string, error) {
 		return "", err
 	}
 	return string(ret), err
+}
+
+func (c *iso2022JPEncoding) getEncoder() transform.Transformer {
+	if c.encoder == nil {
+		c.encoder = japanese.ISO2022JP.NewEncoder()
+	} else {
+		c.encoder.Reset()
+	}
+
+	return c.encoder
+}
+
+func (c *iso2022JPEncoding) Encode(s string) ([]byte, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(s), c.getEncoder()))
+	if err != nil {
+		return nil, err
+	}
+	return ret, err
 }

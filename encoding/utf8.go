@@ -193,3 +193,7 @@ loop:
 func (c utf8Encoding) Decode(b []byte) (string, error) {
 	return string(b), nil
 }
+
+func (c utf8Encoding) Encode(s string) ([]byte, error) {
+	return []byte(s), nil
+}

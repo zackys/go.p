@@ -3,10 +3,10 @@ package file
 import (
 	"bufio"
 	"container/list"
-	"fmt"
 	"github.com/zackys/go.p/encoding"
 	"golang.org/x/text/transform"
 	"io"
+	"log"
 	"os"
 )
 
@@ -44,11 +44,7 @@ func (c *Bytes) ReadFrom(in *os.File) error {
 	r := bufio.NewReader(in)
 	for {
 		b := make([]byte, 2)
-
 		n, err := r.Read(b)
-		for _, c := range b {
-			fmt.Printf("[%02x]", c)
-		}
 		if n == 0 && err == io.EOF {
 			break
 		} else if err != nil {
@@ -90,41 +86,6 @@ func checkEncoding(c *Bytes, es encoding.EncodingSearcher) (yes bool, score int)
 	return err == nil, score
 }
 
-//func checkEncoding(c *Bytes, es encoding.EncodingSearcher) (yes bool, score int) {
-//	ls := c.ls
-//	e := ls.Front()
-//	var nSrc, s int
-//	var err error
-//	var prv []byte
-//	loop:
-//	for {
-//		b := e.Value.([]byte)
-//		if prv != nil {
-//			b = append(prv, b...)
-//		}
-//		next := e.Next()
-//		if next == nil {
-//			nSrc, err, s = es.EncodingSearch(b, true)
-//			score += s
-//			break
-//		} else {
-//			nSrc, err, s = es.EncodingSearch(b, false)
-//			score += s
-//			if err == encoding.ErrInvalidEncoding {
-//				break loop
-//			} else if err == transform.ErrShortSrc {
-//				prv = b[nSrc:]
-//			} else {
-//				prv = nil
-//			}
-//		}
-//
-//		e = next
-//	}
-//
-//	return err == nil, score
-//}
-
 func (c *Bytes) SearchEncoding() encoding.Encoding {
 	var enc encoding.Encoding
 
@@ -132,53 +93,53 @@ func (c *Bytes) SearchEncoding() encoding.Encoding {
 	if yes {
 		if score > 0 {
 			//ISO2022確定
-			println("ISO2022")
+			debug("ISO2022")
 			enc = encoding.ISO2022JP
 		} else {
 			//ASCII確定
-			println("ASCII")
+			debug("ASCII")
 			enc = encoding.ASCII
 		}
 	} else {
 		yes, score := checkEncoding(c, encoding.UTF8)
 		if yes {
 			//UTF8確定
-			println("UTF8")
+			debug("UTF8")
 			enc = encoding.UTF8
 		} else {
 			sjis, scoreSjis := checkEncoding(c, encoding.ShiftJIS)
 			if sjis {
 				//ShiftJIS確定
-				println("maybe ShiftJIS")
+				debug("maybe ShiftJIS")
 			}
 			euc, scoreEuc := checkEncoding(c, encoding.EUCJP)
 			if euc {
 				if !sjis {
-					println("EUCJP", scoreEuc, scoreSjis)
+					debug("EUCJP", scoreEuc, scoreSjis)
 					enc = encoding.EUCJP
 				} else if scoreSjis < scoreEuc {
-					println("EUCJP", scoreEuc, scoreSjis)
+					debug("EUCJP", scoreEuc, scoreSjis)
 					enc = encoding.EUCJP
 				} else {
-					println("*ShiftJIS", scoreSjis, scoreEuc)
+					debug("*ShiftJIS", scoreSjis, scoreEuc)
 					enc = encoding.ShiftJIS
 				}
 			} else {
 				if sjis {
-					println("**ShiftJIS", scoreSjis, scoreEuc)
+					debug("**ShiftJIS", scoreSjis, scoreEuc)
 					enc = encoding.ShiftJIS
 				} else {
 					yes, score = checkEncoding(c, encoding.UTF16)
 					if yes {
 						if score > 0 {
-							println("UTF16BE")
+							debug("UTF16BE")
 							enc = encoding.UTF16BE
 						} else {
-							println("UTF16LE")
+							debug("UTF16LE")
 							enc = encoding.UTF16LE
 						}
 					} else {
-						println("none")
+						debug("none")
 					}
 				}
 			}
@@ -186,4 +147,10 @@ func (c *Bytes) SearchEncoding() encoding.Encoding {
 	}
 
 	return enc
+}
+
+func debug(v ...interface{}) {
+	if os.Getenv("DEBUG") != "" {
+		log.Println(v...)
+	}
 }

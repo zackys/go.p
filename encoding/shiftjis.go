@@ -5,6 +5,7 @@ import (
 	"code.google.com/p/go.text/encoding/japanese"
 	"golang.org/x/text/transform"
 	"io/ioutil"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -15,6 +16,7 @@ type shiftJIS struct {
 	*splitter
 
 	decoder transform.Transformer
+	encoder transform.Transformer
 }
 
 func (shiftJIS) String() string {
@@ -126,4 +128,22 @@ func (c *shiftJIS) Decode(b []byte) (string, error) {
 		return "", err
 	}
 	return string(ret), err
+}
+
+func (c *shiftJIS) getEncoder() transform.Transformer {
+	if c.encoder == nil {
+		c.encoder = japanese.ShiftJIS.NewEncoder()
+	} else {
+		c.encoder.Reset()
+	}
+
+	return c.encoder
+}
+
+func (c *shiftJIS) Encode(s string) ([]byte, error) {
+	ret, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(s), c.getEncoder()))
+	if err != nil {
+		return nil, err
+	}
+	return ret, err
 }

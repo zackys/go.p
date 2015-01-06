@@ -18,6 +18,7 @@ var ErrInvalidEncoding = errors.New("invalid encoding")
 type Encoding interface {
 	Splitter
 	Decoder
+	Encoder
 	fmt.Stringer
 }
 
@@ -130,4 +131,8 @@ loop:
 
 type Decoder interface {
 	Decode(b []byte) (string, error)
+}
+
+type Encoder interface {
+	Encode(s string) ([]byte, error)
 }
