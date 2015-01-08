@@ -21,6 +21,10 @@ func New(encoding encoding.Encoding) *Text {
 	}
 }
 
+func (c *Text) Encoding() encoding.Encoding {
+	return c.encoding
+}
+
 type Iterator struct {
 	next *list.Element
 }
